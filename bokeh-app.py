@@ -1,6 +1,6 @@
 # Import the necessary modules
 from bokeh.io import curdoc
-from bokeh.models import ColumnDataSource, HoverTool, CheckboxGroup
+from bokeh.models import ColumnDataSource, HoverTool, CheckboxGroup, MultiSelect, Button
 from bokeh.plotting import figure, show
 from bokeh.palettes import Spectral11
 from bokeh.layouts import widgetbox, row
@@ -82,10 +82,10 @@ plot.multi_line(xs='xs',
 plot.xaxis.axis_label = 'Days since arrival'
 plot.yaxis.axis_label = 'Cases'
 
+# Callback func for Multiselect widget
 def update_plot(attr, old, new):
-
-    selected_countries = [checkbox_group.labels[i]
-                          for i in checkbox_group.active]
+    
+    selected_countries = multiselect.value
 
     filtered_df = trajectories_df[selected_countries]
 
@@ -105,23 +105,32 @@ def update_plot(attr, old, new):
     
     source.data = new_data
 
+# Callback func for Clear Selection Button
+def clear_selection(event):
 
-checkbox_group = CheckboxGroup(
-                    labels=countries)
+    multiselect.value = []
 
-checkbox_group.on_change('active', update_plot)
+# Callback func for Select All Button
+def select_all(event):
 
+    multiselect.value = countries
 
-# x = np.arange(len(trajectories_df))
-# double_2days = [[*(x * np.log(2)) / 2] for i in x]
-# double_3days = [[*(x * np.log(2)) / 3] for i in x]
-# double_4days = [[*(x * np.log(2)) / 4] for i in x]
+# Creating Multiselect widget with list of countries
+multiselect = MultiSelect(title='Countries:',
+                          options=countries,
+                          value=countries,
+                          height=500)
 
-# plot.multi_line(xs = [[*x] for i in range(3)],
-#                 ys =[double_2days, double_3days, double_4days],
-#                 color='red')
+multiselect.on_change('value', update_plot)
+
+# Creating Clear All, Select All Buttons
+clear_button = Button(label="Clear Selection", button_type="success")
+clear_button.on_click(clear_selection)
+
+select_all_button = Button(label="Select All", button_type="success")
+select_all_button.on_click(select_all)
 
 # Add the plot to the current document and add a title
-layout = row(widgetbox(checkbox_group), plot)
+layout = row(widgetbox(clear_button, select_all_button, multiselect), plot)
 curdoc().add_root(layout)
 curdoc().title = 'Covid-19 Trajectories'
