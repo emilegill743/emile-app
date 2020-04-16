@@ -1,6 +1,6 @@
 # Import the necessary modules
 from bokeh.io import curdoc
-from bokeh.models import ColumnDataSource, HoverTool, CheckboxGroup, MultiSelect, Button
+from bokeh.models import ColumnDataSource, HoverTool, MultiSelect, Button
 from bokeh.plotting import figure, show
 from bokeh.palettes import Spectral11
 from bokeh.layouts import widgetbox, row
@@ -9,12 +9,14 @@ import numpy as np
 import itertools
 
 # Get Johns Hopkins data from GitHub
-
 confirmed_global_url = 'https://raw.githubusercontent.com/CSSEGISandData/COVID-19/master/csse_covid_19_data/csse_covid_19_time_series/time_series_covid19_confirmed_global.csv'
 confirmed_global_df = pd.read_csv(confirmed_global_url)
 
-# Preparing data for no. cases
+worldwide_cases_url = 'https://opendata.ecdc.europa.eu/covid19/casedistribution/csv'
+worldwide_cases_df = pd.read_csv(worldwide_cases_url)
+worldwide_cases_df[worldwide_cases_df['countriesAndTerritories']=='China']
 
+# Preparing data for no. cases
 cases_df = confirmed_global_df.copy()
 
 cases_df.drop(columns=['Province/State', 'Lat', 'Long'], inplace=True)
@@ -34,7 +36,7 @@ cases_df = cases_df.unstack(level=0)['Cases']
 
 # Comparing trajectories of countries
 
-min_cases = 50 # case threshold to be considered infected
+min_cases = 100 # case threshold to be considered infected
 data = {}
 
 for country in cases_df:
@@ -43,8 +45,7 @@ for country in cases_df:
     country_df.index = range(len(country_df))
     
     if len(country_df) > 0:
-        data[country_df.name] = country_df.apply(
-                                    lambda x : np.log(x) if x > 0 else 0)
+        data[country_df.name] = country_df
     
 trajectories_df = pd.DataFrame(data)
 
@@ -66,20 +67,21 @@ source = ColumnDataSource(data={
 
 plot = figure(title='Country Trajectories',
               width=800,
-              height=600)
+              height=600,
+              y_axis_type='log')
 
 # Adding hover tool
 hover = HoverTool(tooltips=[('Country', '@country')])
 plot.add_tools(hover)
 
 # Adding multi_line glyph of trajectories
-plot.multi_line(xs='xs',
+line = plot.multi_line(xs='xs',
                 ys='ys',
                 source=source,
                 line_color='color',
                 line_width=2)
 
-plot.xaxis.axis_label = 'Days since arrival'
+plot.xaxis.axis_label = 'Days since cases exceeded 100'
 plot.yaxis.axis_label = 'Cases'
 
 # Callback func for Multiselect widget
@@ -94,8 +96,9 @@ def update_plot(attr, old, new):
     ys_new = [filtered_df[name].values for name in filtered_df]
 
     countries_new = [name for name in filtered_df]
-
-    colors_new = [Spectral11[i%11] for i in range(len(filtered_df.columns))]
+    
+    countries_subset = [countries.index(country) for country in selected_countries]
+    colors_new = [colors[i] for i in countries_subset]
 
     new_data = data={
                 'xs' : xs_new,
